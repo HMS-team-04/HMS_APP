@@ -6,12 +6,25 @@
 //
 
 import SwiftUI
+import FirebaseCore
 
 @main
 struct HMS_APPApp: App {
+    init() {
+        FirebaseApp.configure()
+    }
+    @StateObject private var authManager = AuthManager()
+    
+    func setupFirebase() {
+        FirebaseApp.configure()
+    }
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationStack {
+                SignUpScreen()
+            }
+            .environmentObject(authManager)
         }
     }
 }
