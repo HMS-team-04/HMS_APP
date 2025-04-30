@@ -20,9 +20,10 @@ struct HMS_APPApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     var body: some Scene {
         WindowGroup {
-            NavigationStack{
-                UserSelectionView()
-            }
+//             NavigationStack{
+//                 UserSelectionView()
+//             }
+            ContentView()
         }
     }
 }
