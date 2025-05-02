@@ -1,15 +1,13 @@
+//
+//  Admin.swift
+//  HMS_APP
+//
+//  Created by Prasanjit Panda on 01/05/25.
+//
+
+
 import Foundation
 import FirebaseFirestore
-
-// Define the Admin model
-struct Admin: Identifiable {
-    let id: String
-    let name: String
-    let email: String
-    let role: String
-    let lastActive: String
-    let hospitalName: String
-}
 
 class AdminFirestoreService {
     static let shared = AdminFirestoreService()
@@ -24,14 +22,17 @@ class AdminFirestoreService {
     }
     
     // Add a new admin to Firestore
-    func addAdmin(userId: String, admin: Admin) async throws {
+    func addAdmin(userId: String, admin: Admin1) async throws {
+
         let adminData: [String: Any] = [
-            "id": admin.id,
+            "adminId": admin.id,
             "name": admin.name,
+            "number": admin.number as Any,
             "email": admin.email,
-            "role": admin.role,
-            "lastActive": admin.lastActive,
-            "hospitalName": admin.hospitalName,
+            "dob": admin.dateOfBirth as Any,
+            "gender": admin.gender as Any,
+            "role": admin.role as Any,
+            "accessLevel": admin.accessLevel?.rawValue as Any,
             "appwriteUserId": userId,
             "createdAt": FirebaseFirestore.FieldValue.serverTimestamp(),
             "database": dbName
@@ -41,17 +42,38 @@ class AdminFirestoreService {
     }
     
     // Get admin details by appwrite userId
-    func getAdmin(userId: String) async throws -> Admin? {
+    func getAdmin(userId: String) async throws -> Admin1? {
+
         let document = try await db.collection("\(dbName)_admins").document(userId).getDocument()
         
         if document.exists, let data = document.data() {
-            return Admin(
-                id: data["id"] as? String ?? "",
+            // Create date formatter for date of birth
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            
+            // Parse date of birth if it exists
+            var dob: Date? = nil
+            if let dobTimestamp = data["dob"] as? Timestamp {
+                dob = dobTimestamp.dateValue()
+            } else if let dobString = data["dob"] as? String {
+                dob = dateFormatter.date(from: dobString)
+            }
+            
+            // Parse access level
+            var accessLevel: Admin1.AccessLevel? = nil
+            if let accessLevelString = data["accessLevel"] as? String {
+                accessLevel = Admin1.AccessLevel(rawValue: accessLevelString)
+            }
+            
+            return Admin1(
+                id: data["adminId"] as? String ?? "",
                 name: data["name"] as? String ?? "",
+                number: data["number"] as? Int,
                 email: data["email"] as? String ?? "",
-                role: data["role"] as? String ?? "Admin",
-                lastActive: data["lastActive"] as? String ?? "",
-                hospitalName: data["hospitalName"] as? String ?? "General Hospital"
+                dateOfBirth: dob,
+                gender: data["gender"] as? String,
+                role: data["role"] as? String,
+                accessLevel: accessLevel
             )
         }
         
@@ -59,19 +81,19 @@ class AdminFirestoreService {
     }
     
     // Create admin if it doesn't exist
-    func getOrCreateAdmin(userId: String, name: String, email: String, role: String = "Admin", hospitalName: String = "General Hospital") async throws -> Admin {
+    func getOrCreateAdmin(userId: String, name: String, email: String, role: String? = nil, accessLevel: Admin1.AccessLevel? = .readonly) async throws -> Admin1 {
+
         if let existingAdmin = try? await getAdmin(userId: userId) {
             return existingAdmin
         }
         
         // Create new admin if one doesn't exist
-        let newAdmin = Admin(
+        let newAdmin = Admin1(
             id: UUID().uuidString,
             name: name,
             email: email,
             role: role,
-            lastActive: Date().formatted(date: .abbreviated, time: .omitted),
-            hospitalName: hospitalName
+            accessLevel: accessLevel
         )
         
         try await addAdmin(userId: userId, admin: newAdmin)

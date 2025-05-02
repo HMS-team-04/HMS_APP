@@ -1,4 +1,5 @@
 import SwiftUI
+
 import FirebaseFirestore
 
 struct PatientsListView: View {
@@ -31,21 +32,62 @@ struct PatientsListView: View {
                 SearchBar(text: $searchText)
                     .padding(.horizontal)
                     .padding(.vertical, 10)
+
+
+struct PatientsListView: View {
+    @Binding var selectedTab: Int
+    @Environment(\.colorScheme) var colorScheme
+    @State private var searchText = ""
+    @State private var selectedFilter = "All"
+    
+    let filters = ["All", "Admitted", "Outpatient", "Emergency"]
+    
+    var currentTheme: Theme {
+        colorScheme == .dark ? Theme.dark : Theme.light
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Filter Pills
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(filters, id: \.self) { filter in
+                            FilterPill(title: filter, isSelected: filter == selectedFilter) {
+                                selectedFilter = filter
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.vertical, 8)
+
                 
                 // Patients List
                 ScrollView {
                     LazyVStack(spacing: 12) {
+
                         ForEach(filteredPatients) { patient in
                             PatientCard(patient: patient)
                                 .onTapGesture {
                                     selectedPatient = patient
                                     showPatientDetail = true
                                 }
+
+                        ForEach(0..<10) { index in
+                            PatientCard(
+                                name: "Patient \(index + 1)",
+                                id: String(format: "P%04d", index + 1),
+                                status: index % 3 == 0 ? "Admitted" : (index % 3 == 1 ? "Outpatient" : "Emergency"),
+                                department: ["Cardiology", "Neurology", "Pediatrics", "Orthopedics"][index % 4]
+                            )
+
                         }
                     }
                     .padding()
                 }
             }
+
         }
         .navigationDestination(isPresented: $showPatientDetail) {
             if let patient = selectedPatient {
@@ -67,11 +109,17 @@ struct PatientsListView: View {
                        patient.email.lowercased().contains(searchQuery) ||
                        (patient.gender?.lowercased().contains(searchQuery) ?? false)
             }
+
+            .navigationTitle("Patients")
+            .searchable(text: $searchText, prompt: "Search patients...")
+            .background(currentTheme.background)
+
         }
     }
 }
 
 struct PatientCard: View {
+
     @Environment(\.colorScheme) var colorScheme
     let patient: Patient
     
@@ -81,10 +129,29 @@ struct PatientCard: View {
             return String(components[0].prefix(1) + components[1].prefix(1))
         }
         return String(patient.name.prefix(2))
+
+    let name: String
+    let id: String
+    let status: String
+    let department: String
+    
+    var statusColor: Color {
+        switch status {
+        case "Admitted":
+            return .blue
+        case "Outpatient":
+            return .green
+        case "Emergency":
+            return .red
+        default:
+            return .gray
+        }
+
     }
     
     var body: some View {
         HStack(spacing: 16) {
+
             // Avatar Circle
             Circle()
                 .fill(colorScheme == .dark ? Theme.dark.primary.opacity(0.2) : Theme.light.primary.opacity(0.2))
@@ -120,6 +187,37 @@ struct PatientCard: View {
                             .foregroundColor(colorScheme == .dark ? Theme.dark.primary : Theme.light.primary)
                             .cornerRadius(8)
                     }
+
+            Circle()
+                .fill(statusColor.opacity(0.1))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Text(String(name.prefix(2)))
+                        .font(.headline)
+                        .foregroundColor(statusColor)
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.headline)
+                
+                Text(id)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                HStack {
+                    Text(status)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(statusColor.opacity(0.1))
+                        .foregroundColor(statusColor)
+                        .cornerRadius(8)
+                    
+                    Text(department)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
                 }
             }
             
@@ -129,8 +227,14 @@ struct PatientCard: View {
                 .foregroundColor(.gray)
         }
         .padding()
+
         .background(colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
+
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(radius: 2)
+
     }
 }
