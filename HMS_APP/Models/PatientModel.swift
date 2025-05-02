@@ -28,6 +28,9 @@ struct Patient: Identifiable, Codable {
     /// The patient's gender
     let gender: String?
     
+    /// The patient's phone number
+    let phoneNumber: String?
+    
     /// Creates a new Patient instance
     /// - Parameters:
     ///   - id: The unique identifier for the patient
@@ -36,13 +39,15 @@ struct Patient: Identifiable, Codable {
     ///   - email: The patient's email address
     ///   - dateOfBirth: The patient's date of birth (optional)
     ///   - gender: The patient's gender (optional)
-    init(id: String, name: String, number: Int? = nil, email: String, dateOfBirth: Date? = nil, gender: String? = nil) {
+    ///   - phoneNumber: The patient's phone number (optional)
+    init(id: String, name: String, number: Int? = nil, email: String, dateOfBirth: Date? = nil, gender: String? = nil, phoneNumber: String? = nil) {
         self.id = id
         self.name = name
         self.number = number
         self.email = email
         self.dateOfBirth = dateOfBirth
         self.gender = gender
+        self.phoneNumber = phoneNumber
     }
     
     // MARK: - Codable
@@ -54,6 +59,7 @@ struct Patient: Identifiable, Codable {
         case email
         case dateOfBirth = "dob"
         case gender
+        case phoneNumber = "phone"
     }
     
     // MARK: - Additional functionality
@@ -102,7 +108,8 @@ extension Patient {
             number: 10042,
             email: "jane.doe@example.com",
             dateOfBirth: dob,
-            gender: "Female"
+            gender: "Female",
+            phoneNumber: nil
         )
     }
 }
@@ -111,30 +118,51 @@ extension Patient {
 class PatientDetails: ObservableObject {
     @Published var patients: [Patient] = []
     private let db = Firestore.firestore()
+    private let collectionName = "hms4_patients"
     
     func fetchPatients() {
-        db.collection("hms4_patients").addSnapshotListener { querySnapshot, error in
-            guard let documents = querySnapshot?.documents else {
-                print("Error fetching patients: \(error?.localizedDescription ?? "Unknown error")")
+        print("🔍 Starting to fetch patients...")
+        print("📚 Trying to access collection: \(collectionName)")
+        
+        db.collection(collectionName).addSnapshotListener { querySnapshot, error in
+            if let error = error {
+                print("❌ Error fetching patients: \(error.localizedDescription)")
                 return
             }
             
+            guard let documents = querySnapshot?.documents else {
+                print("⚠️ No documents found in snapshot")
+                return
+            }
+            
+            print("📄 Found \(documents.count) documents")
+            
             self.patients = documents.compactMap { document -> Patient? in
                 let data = document.data()
-                return Patient(
-                    id: document.documentID,
+                print("📎 Document ID: \(document.documentID)")
+                print("📋 Document data: \(data)")
+                
+                // Create patient object matching Firebase fields
+                let patient = Patient(
+                    id: data["id"] as? String ?? document.documentID,
                     name: data["name"] as? String ?? "",
-                    number: data["number"] as? Int,
+                    number: nil, // Since it's not in your Firebase document
                     email: data["email"] as? String ?? "",
-                    dateOfBirth: (data["dob"] as? Timestamp)?.dateValue(),
-                    gender: data["gender"] as? String
+                    dateOfBirth: nil, // You can parse lastVisit if needed
+                    gender: data["gender"] as? String,
+                    phoneNumber: nil // Add this field to Firebase if needed
                 )
+                
+                print("👤 Created patient: \(patient.name)")
+                return patient
             }
+            
+            print("✅ Finished fetching. Total patients: \(self.patients.count)")
         }
     }
     
     func deletePatient(patient: Patient, completion: @escaping (Bool) -> Void) {
-        db.collection("hms4_patients").document(patient.id).delete() { error in
+        db.collection(collectionName).document(patient.id).delete() { error in
             if let error = error {
                 print("Error removing patient: \(error.localizedDescription)")
                 completion(false)

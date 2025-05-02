@@ -5,12 +5,33 @@ struct StaffListView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var searchText = ""
     @State private var selectedFilter = "All"
+    @State private var showAddStaff = false
     
     let filters = ["All", "Doctors", "Nurses", "Admin"]
     
     var body: some View {
-        NavigationView {
+        ZStack {
+            // Background color
+            (colorScheme == .dark ? Theme.dark.background : Theme.light.background)
+                .ignoresSafeArea()
+            
             VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Staff")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+                
+                // Search Bar
+                SearchBar(text: $searchText)
+                    .padding(.horizontal)
+                    .padding(.vertical, 10)
+                
                 // Filter Pills
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
@@ -39,14 +60,46 @@ struct StaffListView: View {
                     .padding()
                 }
             }
-            .navigationTitle("Staff")
-            .searchable(text: $searchText, prompt: "Search staff...")
-            .background(Color(.systemGroupedBackground))
+            
+            // Floating Action Button
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showAddStaff = true
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .frame(width: 56, height: 56)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        colorScheme == .dark ? Theme.dark.primary : Theme.light.primary,
+                                        colorScheme == .dark ? Theme.dark.primary.opacity(0.8) : Theme.light.primary.opacity(0.8)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .clipShape(Circle())
+                            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 3)
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
+                }
+            }
+        }
+        .navigationDestination(isPresented: $showAddStaff) {
+            AddStaffView()
         }
     }
 }
 
 struct FilterPill: View {
+    @Environment(\.colorScheme) var colorScheme
     let title: String
     let isSelected: Bool
     let action: () -> Void
@@ -57,15 +110,20 @@ struct FilterPill: View {
                 .font(.subheadline)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.blue : Color(.systemBackground))
-                .foregroundColor(isSelected ? .white : .primary)
+                .background(
+                    isSelected ?
+                    (colorScheme == .dark ? Theme.dark.primary : Theme.light.primary) :
+                    (colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground))
+                )
+                .foregroundColor(isSelected ? .white : (colorScheme == .dark ? .white : .primary))
                 .cornerRadius(20)
-                .shadow(radius: 2)
+                .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
         }
     }
 }
 
 struct StaffCard: View {
+    @Environment(\.colorScheme) var colorScheme
     let name: String
     let role: String
     let department: String
@@ -74,17 +132,18 @@ struct StaffCard: View {
     var body: some View {
         HStack(spacing: 16) {
             Circle()
-                .fill(Color.blue.opacity(0.1))
+                .fill(colorScheme == .dark ? Theme.dark.primary.opacity(0.2) : Theme.light.primary.opacity(0.2))
                 .frame(width: 50, height: 50)
                 .overlay(
                     Text(String(name.prefix(2)))
                         .font(.headline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(colorScheme == .dark ? Theme.dark.primary : Theme.light.primary)
                 )
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(name)
                     .font(.headline)
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
                 
                 Text(role)
                     .font(.subheadline)
@@ -102,8 +161,10 @@ struct StaffCard: View {
                 .frame(width: 12, height: 12)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground))
         .cornerRadius(12)
-        .shadow(radius: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
     }
-} 
+}
+
+// Placeholder for AddStaffView
