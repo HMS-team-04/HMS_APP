@@ -168,6 +168,7 @@ struct DashboardContent: View {
 
             Spacer()
         }
+        .navigationBarBackButtonHidden(true)
         .background(theme.background)
         .task {
             if let userInfo = doctorManager.currentUserInfo, let doctorId = userInfo["id"] as? String {
