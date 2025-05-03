@@ -152,7 +152,7 @@ struct ProfileView: View {
             }
         }
         .navigationDestination(isPresented: $navigateToSignUp) {
-            SignUpScreen(userType: "Doctor")
+            UserSelectionView()
         }
         .sheet(isPresented: $showEditProfile) {
             EditProfileView(userName: $userName)

@@ -242,7 +242,7 @@ struct LoginScreen: View {
         case "hospital":
             HospitalView()
         case "doctor":
-            HospitalView()
+            DoctorTabView()
         case "patient":
             PatientHomeView()
         default:
