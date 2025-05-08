@@ -14,8 +14,11 @@ struct PatientDashboardView: View {
     @State private var patient: Patient?
     @State private var isLoading = true
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
 
     var currentAppointments: [AppointmentData] {
+<<<<<<< HEAD
         let now = Date()
         return appointmentManager.patientAppointments
             .filter { appointment in
@@ -34,46 +37,68 @@ struct PatientDashboardView: View {
                 }
                 return date1 < date2 // Sort in ascending order (earliest first)
             }
+=======
+        appointmentManager.patientAppointments.filter {
+            $0.status == .scheduled || $0.status == .inProgress || $0.status == .rescheduled || $0.status == .noShow
+        }
+>>>>>>> e6f364f (added VoiceOver to patient dashboard)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 if isLoading {
-                    ProgressView()
+                    ProgressView("Loading patient dashboard")
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(1.5)
                         .padding()
+                        .accessibilityLabel("Loading patient dashboard")
+                        .accessibilityHint("Please wait while the dashboard loads")
                 } else {
                     DashboardHeaderView(patientName: patient?.name ?? "Patient")
                     QuickActionsView()
 
                     if appointmentManager.isLoading {
-                        ProgressView()
+                        ProgressView("Loading appointments")
                             .progressViewStyle(CircularProgressViewStyle())
                             .padding()
+                            .accessibilityLabel("Loading appointments")
+                            .accessibilityHint("Please wait while appointments load")
                     } else if currentAppointments.isEmpty {
                         NoAppointmentsView()
                     } else {
                         CurrentAppointmentsSection(appointments: currentAppointments)
                     }
 
-//                    LatestReportsView()
-//                    RemindersView()
+                    LatestReportsView()
+                    RemindersView()
                 }
             }
             .padding(.vertical)
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // Support dynamic type
         }
         .navigationBarHidden(true)
         .task {
-            await fetchPatientInfo()
-            await appointmentManager.fetchAppointments()
+            if reduceMotion {
+                await fetchPatientInfo()
+                await appointmentManager.fetchAppointments()
+            } else {
+                withAnimation {
+                    Task {
+                        await fetchPatientInfo()
+                        await appointmentManager.fetchAppointments()
+                    }
+                }
+            }
         }
         .refreshable {
             await fetchPatientInfo()
             await appointmentManager.fetchAppointments()
         }
         .background(colorScheme == .dark ? Theme.dark.background : Theme.light.background)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Patient Dashboard")
+        .accessibilityHint("View your appointments, reports, and reminders")
     }
     
     private func fetchPatientInfo() async {
@@ -115,10 +140,12 @@ struct DashboardHeaderView: View {
                 Text("Welcome Back,")
                     .font(.title3)
                     .foregroundColor(.gray)
+                    .accessibilityHidden(true) // Decorative text
                 Text(patientName)
                     .font(.title)
                     .bold()
                     .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .accessibilityLabel("Patient name: \(patientName)")
             }
             Spacer()
             
@@ -135,9 +162,15 @@ struct DashboardHeaderView: View {
                             .fill(colorScheme == .dark ? Theme.dark.card : .white)
                             .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                     )
+                    .accessibilityLabel("View profile")
+                    .accessibilityHint("Tap to view your patient profile")
+                    .accessibilityAddTraits(.isButton)
             }
+            .buttonStyle(.plain) // Improves keyboard navigation
+            .minimumScaleFactor(0.8)
         }
         .padding(.horizontal)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -151,12 +184,14 @@ struct NoAppointmentsView: View {
                 .font(.headline)
                 .foregroundColor(colorScheme == .dark ? .white : .primary)
                 .padding(.top)
+                .accessibilityLabel("No upcoming appointments available")
             
             Text("Book an appointment with a doctor to get started")
                 .font(.subheadline)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
+                .accessibilityLabel("Book an appointment to get started")
             
             NavigationLink(destination: DoctorsView()) {
                 Text("Find a Doctor")
@@ -165,14 +200,20 @@ struct NoAppointmentsView: View {
                     .padding()
                     .background(colorScheme == .dark ? Theme.dark.primary : Color.medicareBlue)
                     .cornerRadius(10)
+                    .accessibilityLabel("Find a doctor")
+                    .accessibilityHint("Tap to search for available doctors")
+                    .accessibilityAddTraits(.isButton)
             }
+            .buttonStyle(.plain)
             .padding()
+            .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
         .background(colorScheme == .dark ? Theme.dark.card : Theme.light.card)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -186,18 +227,26 @@ struct QuickActionsView: View {
                 .font(.headline)
                 .foregroundColor(colorScheme == .dark ? .white : .primary)
                 .padding(.horizontal)
-
+                .accessibilityLabel("Quick actions section")
+            
             HStack(spacing: 15) {
                 NavigationLink(destination: DoctorsView()) {
                     DashboardActionButton(title: "Book Appointment", icon: "calendar.badge.plus")
+                        .accessibilityLabel("Book appointment")
+                        .accessibilityHint("Tap to schedule a new appointment")
                 }
+                .buttonStyle(.plain)
 
                 NavigationLink(destination: QuestionaireContentView()) {
                     DashboardActionButton(title: "Find Doctor", icon: "stethoscope")
+                        .accessibilityLabel("Find doctor")
+                        .accessibilityHint("Tap to search for a doctor")
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -214,6 +263,7 @@ struct DashboardActionButton: View {
                 .padding()
                 .background(colorScheme == .dark ? Theme.dark.primary : Color.medicareBlue)
                 .clipShape(Circle())
+                .accessibilityHidden(true) // Icon is decorative
 
             Text(title)
                 .font(.caption)
@@ -225,6 +275,8 @@ struct DashboardActionButton: View {
         .background(colorScheme == .dark ? Theme.dark.card : Color(.systemGray6))
         .cornerRadius(16)
         .shadow(color: colorScheme == .dark ? Theme.dark.shadow : .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .minimumScaleFactor(0.8)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -240,6 +292,7 @@ struct CurrentAppointmentsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             DashboardSectionHeader(title: "Current Appointments", destination: AllAppointmentsView())
+                .accessibilityLabel("Current appointments section")
 
             ForEach(appointments.prefix(2)) { appointment in
                 AppointmentCard(appointment: appointment)
@@ -250,6 +303,10 @@ struct CurrentAppointmentsSection: View {
                         self.appointmentToReschedule = nil
                         self.showRescheduleModal = false
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Appointment with \(appointment.doctorName)")
+                    .accessibilityHint("Tap to view appointment details")
+                    .accessibilityAddTraits(.isButton)
             }
         }
         .sheet(item: $selectedAppointment) { appointment in
@@ -263,11 +320,10 @@ struct CurrentAppointmentsSection: View {
                     }
                 }
             )
+            .accessibilityLabel("Appointment details")
             .onChange(of: self.showRescheduleModal) { newValue in
                 if newValue {
-                    // Capture the current appointment for the reschedule sheet
                     self.appointmentToReschedule = appointment
-                    // Dismiss the current detail sheet
                     self.selectedAppointment = nil
                 }
             }
@@ -275,6 +331,7 @@ struct CurrentAppointmentsSection: View {
         .sheet(isPresented: $showRescheduleModal) {
             if let appointmentForReschedule = self.appointmentToReschedule {
                 AppointmentRescheduleView(appointment: appointmentForReschedule)
+                    .accessibilityLabel("Reschedule appointment")
                     .onDisappear {
                         self.showRescheduleModal = false
                         self.appointmentToReschedule = nil
@@ -282,6 +339,7 @@ struct CurrentAppointmentsSection: View {
             } else {
                 Text("No appointment selected for rescheduling")
                     .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .accessibilityLabel("No appointment selected")
             }
         }
     }
@@ -297,7 +355,7 @@ struct AppointmentCard: View {
         case .inProgress: return .medicareGreen
         case .completed: return .gray
         case .cancelled: return .medicareRed
-        case .noShow: return .orange // Set "Waiting" status color to orange
+        case .noShow: return .orange
         case .none:
             return .gray
         }
@@ -309,7 +367,7 @@ struct AppointmentCard: View {
         case .inProgress: return "In Progress"
         case .completed: return "Completed"
         case .cancelled: return "Cancelled"
-        case .noShow: return "Waiting" // Changed from "No Show" to "Waiting"
+        case .noShow: return "Waiting"
         case .rescheduled: return "Rescheduled"
         case .none:
             return "None"
@@ -328,6 +386,7 @@ struct AppointmentCard: View {
                         HStack {
                             Image(systemName: "calendar")
                                 .foregroundColor(.gray)
+                                .accessibilityHidden(true)
                             Text(dateTime, style: .date)
                                 .foregroundColor(.gray)
                         }
@@ -336,6 +395,7 @@ struct AppointmentCard: View {
                         HStack {
                             Image(systemName: "clock")
                                 .foregroundColor(.gray)
+                                .accessibilityHidden(true)
                             Text(dateTime, style: .time)
                                 .foregroundColor(.gray)
                         }
@@ -359,6 +419,7 @@ struct AppointmentCard: View {
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(statusColor.opacity(0.3), lineWidth: 1)
                     )
+                    .accessibilityLabel("Status: \(statusText)")
             }
             
             if let notes = appointment.notes {
@@ -366,11 +427,13 @@ struct AppointmentCard: View {
                     .font(.subheadline)
                     .foregroundColor(.gray)
                     .lineLimit(2)
+                    .accessibilityLabel("Notes: \(notes)")
             }
             
             HStack(spacing: 12) {
                 Image(systemName: "stethoscope")
                     .foregroundColor(colorScheme == .dark ? Theme.dark.primary : .medicareBlue)
+                    .accessibilityHidden(true)
                 Text("Consultation")
                     .font(.subheadline)
                     .foregroundColor(colorScheme == .dark ? Theme.dark.primary : .medicareBlue)
@@ -381,10 +444,13 @@ struct AppointmentCard: View {
                     HStack(spacing: 4) {
                         Image(systemName: "clock.fill")
                             .font(.caption)
+                            .foregroundColor(.gray)
+                            .accessibilityHidden(true)
                         Text("\(duration) min")
                             .font(.caption)
+                            .foregroundColor(.gray)
+                            .accessibilityLabel("Duration: \(duration) minutes")
                     }
-                    .foregroundColor(.gray)
                 }
             }
         }
@@ -396,6 +462,7 @@ struct AppointmentCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.gray.opacity(0.1), lineWidth: 1)
         )
+        .minimumScaleFactor(0.8)
     }
 }
 
@@ -424,13 +491,13 @@ struct AllAppointmentsView: View {
         case .all:
             return appointmentManager.patientAppointments
         case .upcoming:
-            return appointmentManager.patientAppointments.filter { 
-                $0.status == .scheduled || $0.status == .rescheduled || $0.status == .inProgress 
+            return appointmentManager.patientAppointments.filter {
+                $0.status == .scheduled || $0.status == .rescheduled || $0.status == .inProgress
             }
         case .completed:
             return appointmentManager.patientAppointments.filter { $0.status == .completed }
         case .cancelled:
-            return appointmentManager.patientAppointments.filter { 
+            return appointmentManager.patientAppointments.filter {
                 $0.status == .cancelled
             }
         case .waiting:
@@ -440,7 +507,6 @@ struct AllAppointmentsView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Filter Buttons
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach([AppointmentFilter.all, .upcoming, .completed, .cancelled, .waiting], id: \.title) { filter in
@@ -450,48 +516,56 @@ struct AllAppointmentsView: View {
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .background(
-                                    selectedFilter == filter ? 
-                                        Color.medicareBlue : 
+                                    selectedFilter == filter ?
+                                        Color.medicareBlue :
                                         (colorScheme == .dark ? Color(.systemGray6) : Color(.systemGray6))
                                 )
                                 .foregroundColor(
-                                    selectedFilter == filter ? 
-                                        .white : 
+                                    selectedFilter == filter ?
+                                        .white :
                                         (colorScheme == .dark ? .white : .primary)
                                 )
                                 .clipShape(Capsule())
                                 .overlay(
                                     Capsule()
                                         .stroke(
-                                            selectedFilter == filter ? 
-                                                Color.medicareBlue : 
+                                            selectedFilter == filter ?
+                                                Color.medicareBlue :
                                                 Color.medicareBlue.opacity(0.3),
                                             lineWidth: selectedFilter == filter ? 0 : 1
                                         )
                                 )
                         }
+                        .accessibilityLabel("Filter: \(filter.title)")
+                        .accessibilityHint("Tap to filter appointments by \(filter.title)")
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
                 .padding(.horizontal)
             }
             .padding(.top, 8)
+            .accessibilityLabel("Appointment filters")
             
             if appointmentManager.isLoading {
-                ProgressView()
+                ProgressView("Loading appointments")
                     .progressViewStyle(CircularProgressViewStyle())
                     .padding()
+                    .accessibilityLabel("Loading appointments")
             } else if filteredAppointments.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "calendar.badge.exclamationmark")
                         .font(.system(size: 40))
                         .foregroundColor(.gray)
+                        .accessibilityHidden(true)
                     Text("No appointments found")
                         .font(.headline)
                         .adaptiveTextColor()
+                        .accessibilityLabel("No appointments found")
                     Text("There are no appointments in this category")
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
+                        .accessibilityLabel("No appointments in this category")
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -502,6 +576,9 @@ struct AllAppointmentsView: View {
                         ForEach(filteredAppointments) { appointment in
                             AppointmentCard(appointment: appointment)
                                 .padding(.horizontal)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("Appointment with \(appointment.doctorName)")
+                                .accessibilityHint("Tap to view appointment details")
                         }
                     }
                     .padding(.vertical)
@@ -511,6 +588,8 @@ struct AllAppointmentsView: View {
         .navigationTitle("Appointments")
         .navigationBarTitleDisplayMode(.inline)
         .primaryBackground()
+        .accessibilityLabel("All appointments")
+        .accessibilityHint("View and filter all your appointments")
     }
 }
 
@@ -524,10 +603,12 @@ struct LatestReportsView: View {
                 Image(systemName: "chart.bar.doc.horizontal")
                     .foregroundColor(colorScheme == .dark ? Theme.dark.primary : .medicareBlue)
                     .font(.title3)
+                    .accessibilityHidden(true)
                 Text("Latest Reports")
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .accessibilityLabel("Latest reports section")
             }
             .padding(.horizontal)
 
@@ -546,6 +627,7 @@ struct LatestReportsView: View {
                 iconBackground: Color.blue.opacity(0.8)
             )
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -575,6 +657,7 @@ struct ReportCard: View {
                 Image(systemName: icon)
                     .foregroundColor(.white)
                     .font(.system(size: 24))
+                    .accessibilityHidden(true)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -585,6 +668,7 @@ struct ReportCard: View {
                     Image(systemName: "calendar")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
+                        .accessibilityHidden(true)
                     Text(date)
                         .font(.system(size: 14))
                         .foregroundColor(.gray)
@@ -606,6 +690,7 @@ struct ReportCard: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(statusColor.opacity(0.3), lineWidth: 1)
                 )
+                .accessibilityLabel("Status: \(status)")
         }
         .padding()
         .background(colorScheme == .dark ? Theme.dark.card : Color(.systemBackground))
@@ -616,6 +701,9 @@ struct ReportCard: View {
                 .stroke(Color.gray.opacity(0.1), lineWidth: 1)
         )
         .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Report: \(title), dated \(date)")
+        .minimumScaleFactor(0.8)
     }
 }
 
@@ -629,10 +717,12 @@ struct RemindersView: View {
                 .font(.headline)
                 .foregroundColor(colorScheme == .dark ? .white : .primary)
                 .padding(.horizontal)
+                .accessibilityLabel("Reminders section")
 
             ReminderCard(title: "Take Metformin", time: "8:00 AM", isCompleted: true)
             ReminderCard(title: "Blood Pressure Check", time: "7:00 PM", isCompleted: false)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -647,13 +737,13 @@ struct ReminderCard: View {
             Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
                 .foregroundColor(isCompleted ? .medicareGreen : .gray)
                 .frame(width: 40)
+                .accessibilityLabel(isCompleted ? "Completed" : "Not completed")
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline)
                     .foregroundColor(isCompleted ? .gray : (colorScheme == .dark ? .white : .primary))
                     .strikethrough(isCompleted)
-                
                 Text(time)
                     .font(.caption)
                     .foregroundColor(.gray)
@@ -670,6 +760,10 @@ struct ReminderCard: View {
                 .stroke(Color.gray.opacity(0.1), lineWidth: 1)
         )
         .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Reminder: \(title) at \(time)")
+        .accessibilityHint(isCompleted ? "Completed" : "Not completed")
+        .minimumScaleFactor(0.8)
     }
 }
 
@@ -692,9 +786,14 @@ struct DashboardSectionHeader<Destination: View>: View {
                 Text("View All")
                     .font(.subheadline)
                     .foregroundColor(colorScheme == .dark ? Theme.dark.primary : .medicareBlue)
+                    .accessibilityLabel("View all \(title.lowercased())")
+                    .accessibilityHint("Tap to view all items in this section")
+                    .accessibilityAddTraits(.isButton)
             }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal)
+        .accessibilityElement(children: .combine)
     }
 }
 
