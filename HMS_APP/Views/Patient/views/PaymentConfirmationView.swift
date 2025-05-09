@@ -68,11 +68,45 @@ struct PaymentConfirmationView: View {
         // Save payment method to UserDefaults
         UserDefaults.standard.set("online", forKey: "selectedPaymentMethod")
         
+        // Fetch patient name from Firebase
+        let db = Firestore.firestore()
+        let patientRef = db.collection("hms4_patients").document(patientId)
+        
+        patientRef.getDocument { (document, error) in
+            if let error = error {
+                print("Error fetching patient data: \(error.localizedDescription)")
+                // Fallback to UserDefaults name if Firebase fetch fails
+                self.continueAppointmentCreation(appointmentId: appointmentId, patientId: patientId, 
+                                                patientName: UserDefaults.standard.string(forKey: "userName") ?? "Patient",
+                                                dateString: dateString, startTime: startTime, 
+                                                appointmentDateTime: appointmentDateTime)
+            } else if let document = document, document.exists {
+                // Successfully fetched patient data
+                let patientData = document.data()
+                let patientName = patientData?["name"] as? String ?? UserDefaults.standard.string(forKey: "userName") ?? "Patient"
+                
+                self.continueAppointmentCreation(appointmentId: appointmentId, patientId: patientId, 
+                                                patientName: patientName, dateString: dateString, 
+                                                startTime: startTime, appointmentDateTime: appointmentDateTime)
+            } else {
+                print("Patient document does not exist")
+                // Fallback to UserDefaults name if patient document doesn't exist
+                self.continueAppointmentCreation(appointmentId: appointmentId, patientId: patientId, 
+                                                patientName: UserDefaults.standard.string(forKey: "userName") ?? "Patient",
+                                                dateString: dateString, startTime: startTime, 
+                                                appointmentDateTime: appointmentDateTime)
+            }
+        }
+    }
+    
+    // Helper method to continue appointment creation after fetching patient name
+    private func continueAppointmentCreation(appointmentId: String, patientId: String, patientName: String, 
+                                            dateString: String, startTime: String, appointmentDateTime: Date?) {
         // Create appointment data
         let appointmentData: [String: Any] = [
             "id": appointmentId,
             "patId": patientId,
-            "patName": UserDefaults.standard.string(forKey: "userName") ?? "Patient",
+            "patName": patientName,
             "docId": doctor.id ?? "",
             "docName": doctor.name,
             "patientRecordsId": patientId,
@@ -128,13 +162,13 @@ struct PaymentConfirmationView: View {
                         }
                         
                         // Reset loading state
-                        isLoading = false
+                        self.isLoading = false
                     }
                 }
             } catch {
                 await MainActor.run {
                     print("Error creating appointment: \(error.localizedDescription)")
-                    isLoading = false
+                    self.isLoading = false
                 }
             }
         }

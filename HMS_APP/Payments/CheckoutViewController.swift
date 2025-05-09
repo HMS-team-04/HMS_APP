@@ -111,42 +111,67 @@ class CheckoutViewController: UIViewController, RazorpayPaymentCompletionProtoco
                     print("Error updating appointment status: \(error.localizedDescription)")
                 } else {
                     print("Appointment status updated successfully")
-                }
-                
-                // Clean up the UserDefaults
-                UserDefaults.standard.removeObject(forKey: "currentAppointmentId")
-                
-                // Continue with UI cleanup and navigation
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
                     
-                    // Clean up the temporary window
-                    self.paymentWindow = nil
-                    
-                    // Get the window scene
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let window = windowScene.windows.first {
-                        
-                        // Create a new PatientHomeView as the root
-                        let patientHomeView = UIHostingController(rootView: PatientHomeView()
-                            .environmentObject(AuthManager())
-                            .environmentObject(AppointmentManager()))
-                        
-                        // Set as the root view controller to clear navigation stack
-                        window.rootViewController = patientHomeView
-                        
-                        // Show the alert on the new root view
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            let alertController = UIAlertController(
-                                title: "Appointment Scheduled",
-                                message: "Your appointment has been scheduled successfully!",
-                                preferredStyle: .alert
-                            )
-                            
-                            alertController.addAction(UIAlertAction(title: "OK", style: .default))
-                            
-                            patientHomeView.present(alertController, animated: true)
+                    // Update transaction status in Firestore
+                    let transactionsRef = db.collection("hms4_transactions")
+                    transactionsRef.whereField("appointmentId", isEqualTo: appointmentId)
+                        .getDocuments { (snapshot, error) in
+                            if let error = error {
+                                print("Error finding transaction: \(error.localizedDescription)")
+                            } else if let snapshot = snapshot, !snapshot.documents.isEmpty {
+                                // Update each transaction associated with this appointment
+                                for document in snapshot.documents {
+                                    let transactionId = document.documentID
+                                    db.collection("hms4_transactions").document(transactionId).updateData([
+                                        "paymentStatus": "completed",
+                                        "paymentId": payment_id
+                                    ]) { error in
+                                        if let error = error {
+                                            print("Error updating transaction status: \(error.localizedDescription)")
+                                        } else {
+                                            print("Transaction status updated successfully")
+                                        }
+                                    }
+                                }
+                            }
                         }
+                   
+                    }
+            }
+            
+            // Clean up the UserDefaults
+            UserDefaults.standard.removeObject(forKey: "currentAppointmentId")
+            
+            // Continue with UI cleanup and navigation
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                
+                // Clean up the temporary window
+                self.paymentWindow = nil
+                
+                // Get the window scene
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first {
+                    
+                    // Create a new PatientHomeView as the root
+                    let patientHomeView = UIHostingController(rootView: PatientHomeView()
+                        .environmentObject(AuthManager())
+                        .environmentObject(AppointmentManager()))
+                    
+                    // Set as the root view controller to clear navigation stack
+                    window.rootViewController = patientHomeView
+                    
+                    // Show the alert on the new root view
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        let alertController = UIAlertController(
+                            title: "Appointment Scheduled",
+                            message: "Your appointment has been scheduled successfully!",
+                            preferredStyle: .alert
+                        )
+                        
+                        alertController.addAction(UIAlertAction(title: "OK", style: .default))
+                        
+                        patientHomeView.present(alertController, animated: true)
                     }
                 }
             }
